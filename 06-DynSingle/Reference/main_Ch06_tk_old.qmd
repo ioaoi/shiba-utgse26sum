@@ -1,6 +1,6 @@
 ---
 title: "main_Ch06"
-author: "Tatsuki Kikugawa"
+author: "Tatsuki Kikugawa and Aoi Yoshikawa"
 format: html
 editor: 
   markdown: 
@@ -43,7 +43,7 @@ $${\displaystyle {\dfrac {\rm {d}}{{\rm {d}}x}}F\left(x\right)=f\left(x\right)}$
 
 ------------------------------------------------------------------------
 
-以降 Function.Rの関数を読み込んだもの
+# Step 0: Function.R(関数読み込み)
 
 ```{r}
 
@@ -77,8 +77,6 @@ library(plot3D)
 # 自作関数の読み込み
 source("function.R")
 ```
-
-# Step 0: Overview and function setup
 
 ## Agenda / Review of Nested FiXed Point algorithm（NFXP）
 
@@ -238,11 +236,8 @@ contraction <- function(theta,
     # 得られた事前の価値関数を出力
     return(V_old)
   }
+
 ```
-
-各State-idに応じたV(x)を返すVector（126 x 1）を返してくれる
-
-![](images/clipboard-1382473422.png){width="501"}
 
 ## Step 0-2: Data generating function for Algorithm 6.2
 
@@ -323,11 +318,7 @@ generate_data <- function(df,
 
 ```
 
-## Step 0-3: NFXP for Algorithm 6.3 for (2c) log likelihood
-
-$$
-log(Pr(i_{it} | x_{it}; \theta)
-$$
+## Step 0-3: NFXP for Algorithm 6.3
 
 ```{r}
 # 行列の(i,j)要素を出力する関数
@@ -335,9 +326,8 @@ mat_ij <- Vectorize(
   function(i, j, mat) {mat[i, j]},
   vectorize.args = c('i', 'j')
   )
-```
 
-```{r}
+
 # 静学的なロジットにおける対数尤度関数を定義する関数 (6.10 when beta = 0)
 logLH_stat <- function(theta, 
                        state_df, 
@@ -350,6 +340,7 @@ logLH_stat <- function(theta,
   # 対数尤度を計算（CCP part of log sum of L(theta)）
   sum(log(mat_ij(df$state_id, df$action + 1, prob_C_stat)))
 }
+
 ```
 
 ```{r}
@@ -368,21 +359,12 @@ logLH_nfxp <- function(theta,
                            trans_mat$buy %*% V)
   # 選択確率を計算 
   prob_C <- exp(V_CS) / rowSums(exp(V_CS))
-  # 対数尤度を計算（2段目theta依存のCCPのみ）
+  # 対数尤度を計算（theta依存のCCPのみ）
   sum(log(mat_ij(df$state_id, df$action + 1, prob_C)))
 }
 ```
 
-- ※注）中段の6.10式で、beta =
-  0が静学モデルの状況と知っているので、静学モデルの計算時にはVとV_CSは不要となる
-
-![](images/clipboard-3147354037.png){width="485"}
-
-## `main_Ch06.R` のコードを以降は使用
-
-# Step 1: Transition probability setup　－ define "true parameter here"
-
-## Step 1-1: Parameter setup for transition probability
+## `main_Ch06.R` のコード：関数読み込み以降
 
 ```{r}
 # パラメータの設定 ----
@@ -443,8 +425,6 @@ state_df <-
 state_df %>% tail(3)
 ```
 
-## Step 1-2: Create transition probability matrix
-
 ```{r}
 # 走行距離の遷移行列のパラメタを設定し、遷移行列を作成する}
 # 翌期に+0.005 mileageが増える確率が0.4, +0.01が0.1、維持が0.5の確率
@@ -483,10 +463,6 @@ trans_mat_true$not_buy[1, 1:8]
 
 ```
 
-# Step 2: Simulated data created from "true" parameters
-
-## Step 2-1: Prepare simulated data input
-
 ```{r}
 # 定常状態での価格の分布を計算}
 # 以下を満たすような price_dist_steady を求める
@@ -519,7 +495,7 @@ print((end_time - start_time)[[3]])
 ```
 
 ```{r}
-# 選択毎の価値関数(6.9式: Choice-specific value fuction)であるv(x,i)を定義する、真の値を用いてデータを作っておく！！
+# 選択毎の価値関数(6.9式: Choice-specific value fuction)であるv(x,i)を定義する　
 U_true <- flow_utility(theta_true, state_df)
 
 V_CS_true <- U_true + beta * cbind(trans_mat_true$not_buy %*% V_true,
@@ -619,10 +595,6 @@ ggsave(here('06-DynSingle/output/fig6_3_CCP_true_2D.pdf'), device = cairo_pdf)
 
 ```
 
-## 
-
-## Step 2-2: Simulate data for 1k consumers for 10 yrs
-
 ```{r}
 # シミュレーション ----
 
@@ -665,13 +637,13 @@ data_gen <- data_gen %>%
   # 消費者ごとにデータを分割
   dplyr::group_split(consumer) %>%
   # 上記の関数で定義したデータの生成過程をすべての消費者に対して行う
-  purrr::map_dfr(generate_data, # generate_dataは一人ずつ行うので
+  purrr::map_dfr(generate_data,
                  V_CS = V_CS_true,
                  state_df = state_df, 
                  price_dist_steady = price_dist_steady) %>% 
   # 最後の10年のみが観察できるとする
   dplyr::filter(period > (num_period - num_period_obs)) %>% 
-  # 状態変数を表した列を追加, price_id/mileage_id/price/mileageをくっつける
+  # 状態変数を表した列を追加
   dplyr::left_join(state_df, by = 'state_id')
 
 data_gen %>% tail(3)
@@ -683,10 +655,6 @@ data_gen %>% write.csv(here("06-DynSingle/intermediate/Chap6_data.csv"))
 rm(V_CS_true, trans_mat_cum)
 
 ```
-
-参考）left_join part
-
-![](images/clipboard-407001868.png){width="449"}
 
 ```{r}
 # 生成したデータの要約統計
@@ -901,15 +869,6 @@ ggsave(here('06-DynSingle/output/CCP_heatmap.pdf'),
        width = 8, height = 3.2, device = cairo_pdf)
 ```
 
-# Step 3: NFXP algorithm - Estimated from simulated data without knowing "true" parameters
-
-## Step 3-1: (1) Transition probability
-
-Mileage transition matrixで使われている２つのParameter（0.4 &
-0.1）を推定したい
-
-![](images/clipboard-661871628.png){width="470"}
-
 ```{r}
 
 # 遷移行列の推定 ----
@@ -943,7 +902,7 @@ num_cond_obs_mileage <- data_gen %>%
           (lag_action == 1 & 
              mileage_id == 1)
       ) ~ 'cond_obs_mileage1',
-      # kappa_1 +1段階の場合
+      # kappa_1 の場合
       (
         (lag_action == 0 &
            between(lag_mileage_id, 1, 19) &
@@ -951,7 +910,7 @@ num_cond_obs_mileage <- data_gen %>%
           (lag_action == 1 & 
              mileage_id == 2)
       ) ~ 'cond_obs_mileage2',
-      # kappa_2  +２段階の場合
+      # kappa_2 の場合
       (
         (lag_action == 0 &
            between(lag_mileage_id, 1, 19) &
@@ -978,10 +937,6 @@ num_cond_obs_mileage <- data_gen %>%
 
 ```
 
-#### `num_cond_obs_mileage` の各発生数から kappaを推定する（以下を行う）
-
-![](images/clipboard-995152535.png)
-
 ```{r}
 # 最尤法の解析解により推定値を求める
 kappa_est <- c()
@@ -995,13 +950,14 @@ kappa_est[2] <- (num_cond_obs_mileage[3] *
                    (num_cond_obs_mileage[2] + num_cond_obs_mileage[3] + num_cond_obs_mileage[4])) /
   ((num_cond_obs_mileage[2] + num_cond_obs_mileage[3]) * 
      (num_cond_obs_mileage[1] + num_cond_obs_mileage[2] + num_cond_obs_mileage[3] + num_cond_obs_mileage[4]))
-```
 
-```{r}
 
 # 最尤法の解析解により標準誤差を求める
 Infomat_mileage_est <- matrix(0, nrow = 2, ncol = 2)
 
+```
+
+```{r}
 # 最尤法のフィッシャー情報量を求める
 Infomat_mileage_est[1,1] <- 
   (num_cond_obs_mileage[1] / (1 - kappa_est[1] - kappa_est[2])^2) +
@@ -1029,10 +985,6 @@ dplyr::tibble(kappa_est, kappa_se) %>% {
 
 ```
 
-同様に以下のH（価格の遷移行列、6 x 6）を求める
-
-![](images/clipboard-306997657.png)
-
 ```{r}
 ## 価格の遷移行列の推定
 
@@ -1056,12 +1008,13 @@ num_cond_obs_price <- data_gen %>%
 lambda_est_mat <- num_cond_obs_price / rowSums(num_cond_obs_price)
 
 lambda_est_mat
-```
 
-```{r}
 # 最尤法の解析解により標準誤差を求める
 lambda_se <- c()
 
+```
+
+```{r}
 for (i in 1:num_price_states) {
   # 最尤法のフィッシャー情報量を求める
   Infomat_price_est <- 
@@ -1099,8 +1052,6 @@ dplyr::tibble(lambda_est, lambda_se) %>% {
 
 ```
 
-## Step 3-2: Parameter estimation by NFXP
-
 ```{r}
 # パラメータの推定 ----
 
@@ -1112,14 +1063,13 @@ dplyr::tibble(lambda_est, lambda_se) %>% {
 start_time <- proc.time()
 
 # 最適化
-logit_stat_opt <- optim(theta_true,　　　　　# 初期値として与える、0でも同じ
-                        logLH_stat,　　　　　# 目的関数
+logit_stat_opt <- optim(theta_true,
+                        logLH_stat,
                         state_df = state_df,
                         df = data_gen, 
-                        control = list(fnscale = -1), 　# 最大化 not 最小化
-                        method = 'Nelder-Mead')         # Simplex method
+                        control = list(fnscale = -1), 
+                        method = 'Nelder-Mead')
 
-# logit_stat_opt$convergence　が０なら正常収束
 end_time <- proc.time()
 
 cat('Runtime:\n')
@@ -1156,9 +1106,9 @@ start_time <- proc.time()
 
 # 最適化
 NFXP_opt <- optim(theta_true,
-                  logLH_nfxp,                 # l(theta)の計算を都度回す
-                  beta = beta,                #動学モデルに必要なBeta
-                  trans_mat = trans_mat_hat,　#動学モデルに必要な遷移行列 
+                  logLH_nfxp,
+                  beta = beta,
+                  trans_mat = trans_mat_hat,
                   state_df = state_df,
                   df = data_gen, 
                   control = list(fnscale = -1), 
@@ -1203,250 +1153,3 @@ dplyr::tibble(
   }
 
 ```
-
-# \[Appendix\] Step 4. NFXPの収束を可視化する
-
-> 以下の可視化関数は `readline()`
-> でEnter待ちをするので、**Consoleにコピペして実行**すること。
-> Quartoのレンダリングで止まらないよう、実行チャンクには
-> `#| eval: false` を付けてある。
-
-## Step 4-1. 内側ループ：縮小写像は本当に収束するか？
-
-## 価値関数が45度線に吸い付く
-
-`contraction()` は途中経過を返さないので、履歴を貯める版を書く。
-ループ構造が見えるよう、写像1ステップ分と `while` 文を分けた。
-
-```{r}
-# 式(6.8) のベルマン作用素を1ステップだけ適用する
-BellmanOperator <- function(V_old, U, beta, trans_mat) {
-  V_new <- log(rowSums(exp(U + beta * cbind(trans_mat$not_buy %*% V_old,
-                                            trans_mat$buy     %*% V_old)))) + Euler_const
-  V_new <- matrix(V_new, ncol = 1)
-  list(V = V_new, diff = max(abs(V_new - V_old)))   # diff は sup ノルム
-}
-
-# contraction() と同じ while 文だが、全反復の履歴を貯める
-ContractionTrace <- function(theta, beta, trans_mat, state_df, tol = 1e-12) {
-  U      <- flow_utility(theta, state_df)                    # 式(6.2)
-  V_old  <- matrix(0, nrow = nrow(state_df), ncol = 1)       # 初期値はゼロ
-  V_hist <- NULL; diff_hist <- NULL
-  diff   <- 1e+10
-
-  while (diff > tol) {
-    res       <- BellmanOperator(V_old, U, beta, trans_mat)
-    V_hist    <- cbind(V_hist, res$V)
-    diff_hist <- c(diff_hist, res$diff)
-    diff      <- res$diff
-    V_old     <- res$V                                       # 更新して次へ
-  }
-  list(V = V_old, V_hist = V_hist, diff_hist = diff_hist, iter = length(diff_hist))
-}
-```
-
-真のパラメータで走らせる。
-
-```{r}
-cont_trace <- ContractionTrace(theta_true, beta, trans_mat_true, state_df)
-cont_trace$iter                                              # 収束までの反復回数
-
-# 更新幅の隣接比 → きれいに beta = 0.95 が並ぶ（縮小写像のモジュラス）
-head(cont_trace$diff_hist[-1] / head(cont_trace$diff_hist, -1))
-```
-
-可視化。左は「更新前 $V$ vs 更新後
-$V$」を126状態ぶんプロットしたもので、
-**全点が45度線に乗ったときが不動点**。右はsupノルムの履歴（対数軸）。
-
-```{r}
-VisualizeContraction <- function(trace, step_by = 25, tol = 1e-12) {
-  V_hist <- trace$V_hist; diff_hist <- trace$diff_hist; n <- trace$iter
-  V_star <- as.vector(trace$V); lim <- range(c(0, V_hist))
-  steps  <- unique(c(1, seq(step_by, n, by = step_by), n))
-
-  old_par <- par(no.readonly = TRUE); on.exit(par(old_par))
-  par(mfrow = c(1, 2), mar = c(4.5, 4.5, 3, 1))
-
-  for (i in steps) {
-    V_before <- if (i == 1) rep(0, length(V_star)) else V_hist[, i - 1]
-    # 左：更新前 vs 更新後
-    plot(V_before, V_hist[, i], col = "blueviolet", pch = 19, cex = 0.7,
-         xlim = lim, ylim = lim, xlab = "V (before)", ylab = "V (after)",
-         main = sprintf("Bellman Operator (%d / %d)", i, n))
-    abline(a = 0, b = 1, col = "gray80", lty = 2, lwd = 1.5)
-    points(V_star, V_star, col = "gray50", pch = 4, cex = 0.6)
-    # 右：supノルムの履歴
-    plot(1:i, diff_hist[1:i], type = "o", pch = 19, cex = 0.5, col = "blueviolet", log = "y",
-         xlim = c(1, n), ylim = c(tol / 10, max(diff_hist)),
-         xlab = "Iteration (h)", ylab = "sup |V_new - V_old|",
-         main = sprintf("Diff: %.3e", diff_hist[i]))
-    abline(h = tol, col = "gray50", lty = 2, lwd = 2)
-
-    if (i == n) break
-    if (tolower(readline(sprintf("[%d/%d] Enterで次へ (qで停止): ", i, n))) == "q") break
-  }
-}
-```
-
-```{r}
-#| eval: false
-VisualizeContraction(cont_trace, step_by = 10)
-```
-
-見どころ。点群は原点付近から $-24 \sim -36$
-の帯へ滑り落ち、最後に45度線上で止まる。 割引和 $\sum \beta^h u$
-が積み上がる様子そのもの。 $\theta$
-を変えても止まる高さが変わるだけで**収束の速さは変わらない**。速さを決めるのは
-$\beta$ だけ。
-
-## Step 4-2. 外側ループ：`optim` の軌跡を描く
-
-`optim()` は途中経過を返さないので、**目的関数の側に記録を仕込む**。
-中身は `logLH_nfxp()` と同一で、返す前に
-$\theta$・対数尤度・予測CCPを積み上げるだけ。
-
-```{r}
-trace_env <- new.env()                                       # 記録用の環境
-
-logLH_nfxp_traced <- function(theta, beta, trans_mat, state_df, df) {
-  U      <- flow_utility(theta, state_df)                        # 式(6.2)
-  V      <- contraction(theta, beta, trans_mat, state_df)        # 内側ループ：式(6.8)
-  V_CS   <- U + beta * cbind(trans_mat$not_buy %*% V,
-                             trans_mat$buy     %*% V)            # 式(6.9)
-  prob_C <- exp(V_CS) / rowSums(exp(V_CS))                       # 式(6.10)
-  logLH  <- sum(log(mat_ij(df$state_id, df$action + 1, prob_C))) # 式(6.12)
-
-  trace_env$theta_hist    <- rbind(trace_env$theta_hist, theta)
-  trace_env$ll_hist       <- c(trace_env$ll_hist, logLH)
-  trace_env$prob_buy_hist <- rbind(trace_env$prob_buy_hist, prob_C[, 2])
-  logLH
-}
-
-TraceNFXP <- function(theta_start, beta, trans_mat, state_df, df) {
-  trace_env$theta_hist <- NULL; trace_env$ll_hist <- NULL; trace_env$prob_buy_hist <- NULL
-  opt <- optim(theta_start, logLH_nfxp_traced,
-               beta = beta, trans_mat = trans_mat, state_df = state_df, df = df,
-               control = list(fnscale = -1), method = 'Nelder-Mead')
-  cat(sprintf("評価回数 %d / theta = (%.4f, %.4f) / logL = %.4f\n",
-              length(trace_env$ll_hist), opt$par[1], opt$par[2], opt$value))
-  list(opt = opt, theta_hist = trace_env$theta_hist, ll_hist = trace_env$ll_hist,
-       prob_buy_hist = trace_env$prob_buy_hist, n_eval = length(trace_env$ll_hist))
-}
-```
-
-初期値は真値から遠く取る。 教科書は `optim(theta_true, ...)`
-と真値から出発するので足跡がほとんど動かず絵にならない
-（なお、どこから出発しても $\hat\theta$
-は小数点4桁まで同じ。真値はヒントになっていない）。
-
-```{r}
-nfxp_trace <- TraceNFXP(c(1, 1), beta, trans_mat_hat, state_df, data_gen)
-```
-
-## Step 4-3. 外側ループ①：theta推定量が正しいか？（識別・最適化）
-
-```{r}
-VisualizeNFXPPath <- function(trace, theta_true = c(15, 6), step_by = 5) {
-  th <- trace$theta_hist; ll <- trace$ll_hist; n <- trace$n_eval; ll_max <- max(ll)
-  xlim <- extendrange(c(th[, 1], theta_true[1])); ylim <- extendrange(c(th[, 2], theta_true[2]))
-  steps <- unique(c(1, seq(step_by, n, by = step_by), n))
-
-  old_par <- par(no.readonly = TRUE); on.exit(par(old_par))
-  par(mfrow = c(1, 2), mar = c(4.5, 4.5, 3, 1))
-
-  for (i in steps) {
-    # 左：(theta_c, theta_p) 平面の軌跡
-    plot(th[1:i, 1], th[1:i, 2], type = "o", col = "gray80", pch = 16, cex = 0.6,
-         xlim = xlim, ylim = ylim, xlab = expression(theta[c]), ylab = expression(theta[p]),
-         main = sprintf("Parameter Space (%d / %d)", i, n))
-    points(theta_true[1], theta_true[2], col = "gray50", pch = 4, cex = 1.8, lwd = 2)  # 真値
-    points(th[i, 1], th[i, 2], col = "blueviolet", pch = 19, cex = 1.4)                # 現在地
-    legend("bottomright", c("True", sprintf("Now (%.2f, %.2f)", th[i, 1], th[i, 2])),
-           col = c("gray50", "blueviolet"), pch = c(4, 19), bty = "n")
-    # 右：対数尤度の履歴
-    plot(1:i, ll[1:i], type = "o", pch = 19, cex = 0.5, col = "blueviolet",
-         xlim = c(1, n), ylim = range(ll),
-         xlab = "Function Evaluation", ylab = "Log-Likelihood",
-         main = sprintf("logL: %.3f  (gap %.4f)", ll[i], ll_max - ll[i]))
-    abline(h = ll_max, col = "gray50", lty = 2, lwd = 2)
-
-    if (i == n) break
-    if (tolower(readline(sprintf("[%d/%d] Enterで次へ (qで停止): ", i, n))) == "q") break
-  }
-}
-```
-
-```{r}
-#| eval: false
-VisualizeNFXPPath(nfxp_trace, theta_true, step_by = 5)
-```
-
-見どころ。(1) 最初の20〜30回で大半を稼ぎ、あとは微調整。 (2)
-Nelder-Meadは勾配を使わず三角形を反射・収縮させて進むので、尤度が時々下がる。バグではない。
-(3) 止まる場所は真値ではなく
-$(13.96, 5.80)$。これは有限標本のブレであってバイアスではない。
-
-## Step 4-4. 外側ループ②：推定したモデルが現実データを再現できているかのModel fitを確認する
-
-## 予測CCPがデータに寄っていくはず
-
-最尤法は「各状態での予測購入確率を、その状態での実際の購入割合に合わせる」作業をしている。
-なので $\theta$ が正解に近づけば、点は45度線に寄るはずだ。
-
-```{r}
-obs_freq <- data_gen %>%
-  dplyr::group_by(state_id) %>%
-  dplyr::summarise(n_obs = dplyr::n(), p_obs = mean(action), .groups = "drop") %>%
-  dplyr::filter(n_obs >= 30)                                 # 観測数が少ない状態は足切り
-```
-
-```{r}
-VisualizeNFXPFit <- function(trace, obs_freq, step_by = 5) {
-  sid <- obs_freq$state_id; p_obs <- obs_freq$p_obs
-  pb  <- trace$prob_buy_hist; ll <- trace$ll_hist; n <- trace$n_eval; ll_max <- max(ll)
-  lim <- c(0, max(c(p_obs, pb[, sid])))
-  cex_obs <- 0.5 + 1.5 * sqrt(obs_freq$n_obs / max(obs_freq$n_obs))   # 点の大きさ ∝ 観測数
-  steps   <- unique(c(1, seq(step_by, n, by = step_by), n))
-
-  old_par <- par(no.readonly = TRUE); on.exit(par(old_par))
-  par(mfrow = c(1, 2), mar = c(4.5, 4.5, 3, 1))
-
-  for (i in steps) {
-    # 左：予測CCP vs 観測購入頻度
-    plot(p_obs, pb[i, sid], col = "blueviolet", pch = 19, cex = cex_obs,
-         xlim = lim, ylim = lim, xlab = "Observed Freq.", ylab = "Predicted CCP",
-         main = sprintf("Predicted vs Observed (%d / %d)", i, n))
-    abline(a = 0, b = 1, col = "gray80", lty = 2, lwd = 1.5)
-    legend("topleft", sprintf("theta = (%.2f, %.2f)", trace$theta_hist[i, 1],
-                              trace$theta_hist[i, 2]), bty = "n")
-    # 右：対数尤度の履歴
-    plot(1:i, ll[1:i], type = "o", pch = 19, cex = 0.5, col = "blueviolet",
-         xlim = c(1, n), ylim = range(ll),
-         xlab = "Function Evaluation", ylab = "Log-Likelihood",
-         main = sprintf("logL: %.3f", ll[i]))
-    abline(h = ll_max, col = "gray50", lty = 2, lwd = 2)
-
-    if (i == n) break
-    if (tolower(readline(sprintf("[%d/%d] Enterで次へ (qで停止): ", i, n))) == "q") break
-  }
-}
-```
-
-```{r}
-#| eval: false
-VisualizeNFXPFit(nfxp_trace, obs_freq, step_by = 5)
-```
-
-初期値 $(1,1)$ では予測CCPが軒並み観測値より上に張り付いている。
-探索が進むと点群が45度線の周りに降りてくる。
-大きい点ほど線に近いのは、観測数の多い状態ほど $p_{obs}$
-のノイズが小さく、
-尤度が自動的にそちらを優先して合わせにいくからである。
-
-## まとめ
-
-- NFXPの「少しずつ近づく」には**二種類**ある。内側の $V$
-  は縮小写像なので毎回0.95倍で単調・確実。 外側の $\theta$
-  は数値最適化なのでジグザグして後戻りもする。
-- 外側1回につき内側550回。この掛け算がNFXPのコストで、第7章のCCP法の動機がここに数字で見える。
