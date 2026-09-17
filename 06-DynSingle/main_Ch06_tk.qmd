@@ -80,7 +80,7 @@ source("function.R")
 
 # Step 0: Overview and function setup
 
-## Agenda / Review of Nested FiXed Point algorithm（NFXP）
+## Agenda / Review of Nested Fixed Point algorithm（NFXP）
 
 ![](images/clipboard-3395151387.png){width="551"}
 
@@ -206,6 +206,10 @@ flow_utility <- function(theta,
   return(U)
 }
 ```
+
+※ｐ.128 - Utility function from textbook
+
+![](images/clipboard-782290325.png)
 
 ```{r}
 # Algorithm 6.1: Value function iteration (Inner loop part)
@@ -374,13 +378,19 @@ logLH_nfxp <- function(theta,
 ```
 
 - ※注）中段の6.10式で、beta =
-  0が静学モデルの状況と知っているので、静学モデルの計算時にはVとV_CSは不要となる
+  0が静学モデルの状況と知っているので、静学モデルの計算時にはVとV_CSは不要となり、Uだけの比較でよくなる
 
 ![](images/clipboard-3147354037.png){width="485"}
+
+------------------------------------------------------------------------
 
 ## `main_Ch06.R` のコードを以降は使用
 
 # Step 1: Transition probability setup　－ define "true parameter here"
+
+（再掲）
+
+![](images/clipboard-4265117177.png)
 
 ## Step 1-1: Parameter setup for transition probability
 
